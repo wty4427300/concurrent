@@ -1,24 +1,33 @@
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use anyhow::{anyhow, Result};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Metrics {
-    pub metrics: HashMap<String, i64>,
+    pub date: Arc<Mutex<HashMap<String, i64>>>,
 }
 
 impl Metrics {
     pub fn new() -> Self {
         Metrics {
-            metrics: HashMap::new(),
+            date: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    pub fn inc(&mut self, key: &str) {
-        let counter = self.metrics.entry(key.to_string()).or_insert(0);
+    pub fn inc(&self, key: impl Into<String>) -> Result<()> {
+        let mut date = self.date
+            .lock()
+            .map_err(|e| anyhow!(e.to_string()))?;
+        let counter = date.entry(key.into()).or_insert(0);
         *counter += 1;
+        Ok(())
     }
 
-    pub fn dec(&mut self, key: &str) {
-        let counter = self.metrics.entry(key.to_string()).or_insert(0);
-        *counter -= 1;
+    pub fn snapshot(&self) -> Result<HashMap<String, i64>> {
+        let date = self.date
+            .lock()
+            .map_err(|e| anyhow!(e.to_string()))?
+            .clone();
+        Ok(date)
     }
 }
